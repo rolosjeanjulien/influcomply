@@ -14,42 +14,54 @@ function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname.startsWith(route))
 }
 
+function isSupabaseConfigured(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return !!(
+    url && key &&
+    url !== "https://placeholder.supabase.co" &&
+    key !== "placeholder" &&
+    url.includes(".supabase.co")
+  )
+}
+
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+  const supabaseResponse = NextResponse.next({ request })
 
-  // Demo mode: skip all auth checks
-  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
+  // Skip auth if Supabase is not properly configured (preview/demo)
+  if (!isSupabaseConfigured()) {
     return supabaseResponse
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return supabaseResponse
-  }
-
+  let response = supabaseResponse
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll()
       },
-      setAll(cookiesToSet: { name: string; value: string; options?: Parameters<typeof supabaseResponse.cookies.set>[2] }[]) {
+      setAll(cookiesToSet: { name: string; value: string; options?: Parameters<typeof response.cookies.set>[2] }[]) {
         cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value)
         )
-        supabaseResponse = NextResponse.next({ request })
+        response = NextResponse.next({ request })
         cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options)
+          response.cookies.set(name, value, options)
         )
       },
     },
   })
 
   // Rafraîchir la session (ne pas supprimer cette ligne)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch {
+    return response
+  }
 
   const { pathname } = request.nextUrl
 
@@ -68,7 +80,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl)
   }
 
-  return supabaseResponse
+  return response
 }
 
 export const config = {
