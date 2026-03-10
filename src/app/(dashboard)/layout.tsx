@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic"
 const DEMO_USER = { email: "demo@influcomply.fr", name: "Démo" }
 
 async function getUser() {
-  if (process.env.DEMO_MODE === "true") {
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
     return { email: DEMO_USER.email, name: DEMO_USER.name }
   }
   try {
