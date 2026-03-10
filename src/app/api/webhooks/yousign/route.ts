@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import type { ContractStatus } from "@/types/contract";
 
 const YOUSIGN_SECRET = process.env.YOUSIGN_WEBHOOK_SECRET ?? "";
 
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (!yousignId) return NextResponse.json({ ok: true });
 
   // Map Yousign event types to contract status strings
-  const statusMap: Record<string, string> = {
+  const statusMap: Record<string, ContractStatus> = {
     "signature_request.done": "SIGNED",
     "signature_request.expired": "EXPIRED",
     "signature_request.canceled": "TERMINATED",
