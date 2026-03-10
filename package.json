@@ -26,7 +26,7 @@
     "@react-email/components": "^0.0.35",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.99.0",
-    "@trigger.dev/sdk": "^3.5.0",
+    "@trigger.dev/sdk": "^4.4.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.3.1",
