@@ -1,0 +1,18 @@
+# Exigences — Contract Factory (CTR)
+
+> Gestion du cycle de vie contractuel des collaborations commerciales, conformément aux obligations de contractualisation entrées en vigueur le 1er janvier 2026.
+
+## Exigences
+
+| ID | Titre | Exigence | Type | Prio | Source | Vérification | Rationale |
+|----|-------|----------|------|------|--------|-------------|-----------|
+| REQ-CTR-001 | Templates conformes | Le système DOIT fournir des modèles de contrats pré-rédigés et validés juridiquement pour au minimum 3 types de collaboration : créateur-marque, créateur-agent, créateur-agence, intégrant toutes les clauses obligatoires de la loi 2023-451 et du décret du 1er janvier 2026. | F | P0 | Loi 2023-451 art.7 + décret 2026 | Revue juridique | Obligation de contractualisation écrite au-delà de 1 000 € HT. |
+| REQ-CTR-002 | Wizard de création guidé | Le système DOIT proposer un assistant pas-à-pas (wizard) permettant de générer un contrat complet en répondant à des questions structurées : type de collaboration, montant, durée, droits PI, territoires, clauses spécifiques. | F | P0 | PRD §4.2 | Test parcours utilisateur | Les créateurs ne sont pas des juristes ; l'interface doit être accessible. |
+| REQ-CTR-003 | Calcul seuil 1 000 € HT | Le système DOIT suivre automatiquement le cumul des rémunérations et avantages en nature par couple créateur-annonceur sur l'année civile, et alerter lorsque le seuil de 1 000 € HT est atteint ou approché (alerte à 800 €). | F | P0 | Décret 2026 | Test calcul + scénarios limites | Détermine l'obligation de contractualisation formelle. |
+| REQ-CTR-004 | Signature électronique | Le système DEVRAIT intégrer un service de signature électronique conforme eIDAS permettant la signature juridiquement opposable des contrats générés. | F | P1 | PRD §4.2 | Test d'intégration Yousign | Réduit la friction et accélère le cycle contractuel. |
+| REQ-CTR-005 | Archivage légal | Le système DOIT archiver les contrats signés avec horodatage qualifié et garantir leur intégrité pendant une durée minimale de 5 ans. | F | P0 | Code de la consommation | Audit d'archivage | Obligation de conservation des preuves contractuelles. |
+| REQ-CTR-006 | Gestion cycle de vie | Le système DOIT gérer le cycle de vie d'un contrat : brouillon, en attente de signature, signé, expiré, résilié, avec notifications automatiques aux échéances. | F | P1 | PRD §4.2 | Test workflow | Évite les oublis de renouvellement ou les contrats expirés non détectés. |
+| REQ-CTR-007 | Vérification SIRET | Le système POURRAIT vérifier automatiquement l'existence et la validité du SIRET d'un partenaire contractuel via l'API Sirene de l'INSEE. | F | P2 | PRD §4.2 | Test API Sirene | Réduit le risque de contracter avec une entité frauduleuse. |
+| REQ-CTR-008 | Export multi-format | Le système DOIT permettre l'export des contrats générés aux formats PDF et DOCX. | F | P0 | Usage standard | Test d'export | Les avocats et comptables travaillent en PDF/Word. |
+| REQ-CTR-009 | Clause de responsabilité solidaire | Chaque contrat généré DOIT intégrer une clause rappelant le principe de responsabilité solidaire entre l'annonceur, l'agence et le créateur conformément à la loi 2023-451. | F | P0 | Loi 2023-451 art.6 | Revue juridique | Obligation légale ; protège toutes les parties. |
+| REQ-CTR-010 | Disclaimer juridique | Le système DOIT afficher de manière visible, à chaque génération de contrat, un disclaimer indiquant que le document ne constitue pas un conseil juridique et qu'un avocat doit être consulté pour toute situation spécifique. | C | P0 | Gestion du risque juridique | Revue UX + juridique | Protège la plateforme contre les réclamations. |
