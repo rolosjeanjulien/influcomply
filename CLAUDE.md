@@ -1,117 +1,45 @@
-# CLAUDE.md — Conventions du projet
+# InfluComply — Instructions pour Claude Code
 
-Ce fichier définit les conventions et directives pour Claude Code sur ce projet.
+## Contexte
+InfluComply est une plateforme SaaS B2B de conformité réglementaire
+pour l'influence commerciale en France (loi n° 2023-451 du 9 juin 2023).
 
 ## Stack technique
+- Framework: Next.js 15 (App Router) + TypeScript
+- BDD: Supabase (PostgreSQL 16 + Auth + Storage + Realtime)
+- ORM: Prisma
+- UI: shadcn/ui + Tailwind CSS
+- IA: Anthropic Claude API (classification, RAG)
+- Jobs async: Trigger.dev
+- Signature: Yousign API v3
+- Email: Resend + React Email
+- Déploiement: Vercel + Supabase Cloud (EU)
 
-- **Framework** : Next.js (App Router, React Server Components)
-- **Langage** : TypeScript (strict)
-- **Style** : Tailwind CSS v4
-- **Composants UI** : shadcn/ui
-- **Base de données** : PostgreSQL via Supabase
-- **ORM** : Prisma
+## Documentation de référence
+- Exigences produit: docs/requirements/REQ-*.md
+- Spécifications techniques: docs/specs/SPC-*.md
+- Matrice de traçabilité: docs/traceability.md
 
-## Structure du projet
+## Conventions de développement
+- Chaque feature DOIT référencer son ID d'exigence (REQ-XXX-NNN)
+  et sa spec (SPC-XXX-NNN) en commentaire dans le code
+- Langue du code: anglais (variables, fonctions, commentaires techniques)
+- Langue des contenus utilisateur: français
+- Validation des inputs: Zod (schémas partagés front/back)
+- Tests: Vitest (unit) + Playwright (e2e)
+- Chaque PR doit couvrir au minimum les critères d'acceptation
+  de la spec associée
 
-```
+## Structure du code
 src/
-  app/                  # Routes Next.js (App Router)
-    (auth)/             # Groupe de routes authentifiées
-    api/                # Route Handlers API
-  components/
-    ui/                 # Composants shadcn/ui (ne pas modifier)
-    [feature]/          # Composants par fonctionnalité
-  lib/
-    prisma.ts           # Singleton Prisma Client
-    supabase/
-      client.ts         # Client Supabase (navigateur)
-      server.ts         # Client Supabase (serveur, service role)
-    utils.ts            # Utilitaires (cn, etc.)
-  hooks/                # Custom React hooks
-  types/                # Types TypeScript partagés
-  generated/
-    prisma/             # Client Prisma généré (ne pas committer)
-prisma/
-  schema.prisma         # Schéma de la base de données
-  migrations/           # Migrations Prisma
-```
+  app/           → Pages et routes Next.js (App Router)
+  components/    → Composants React réutilisables
+  lib/           → Utilitaires, clients API, helpers
+  services/      → Logique métier (scanner, contrats, scoring)
+  prisma/        → Schéma Prisma et migrations
+  trigger/       → Jobs Trigger.dev
 
-## Conventions de code
-
-### TypeScript
-- Toujours utiliser TypeScript strict
-- Préférer les `interface` aux `type` pour les objets
-- Exporter les types depuis `src/types/`
-- Pas de `any` — utiliser `unknown` si nécessaire
-
-### Composants React
-- Server Components par défaut (pas de `"use client"` sauf si nécessaire)
-- Ajouter `"use client"` uniquement pour les composants interactifs
-- Nommer les composants en PascalCase
-- Un composant par fichier
-
-### Fichiers et dossiers
-- Kebab-case pour les noms de fichiers : `user-profile.tsx`
-- PascalCase pour les composants : `UserProfile`
-- camelCase pour les fonctions utilitaires
-
-### Base de données (Prisma v7)
-- Toujours utiliser le singleton `prisma` depuis `@/lib/prisma`
-- Les URLs de connexion sont dans `prisma.config.ts` (pas dans `schema.prisma`)
-  - `DATABASE_URL` → pooler Supabase (Transaction mode, port 6543) — runtime
-  - `DIRECT_URL` → connexion directe Supabase (port 5432) — migrations
-- Modèles en PascalCase : `User`, `Post`
-- Tables en snake_case via `@@map("table_name")`
-- Champs en camelCase dans le schéma, snake_case en DB via `@map`
-- Toujours inclure `createdAt` et `updatedAt` sur les modèles
-
-### API Routes
-- Utiliser les Route Handlers Next.js dans `app/api/`
-- Valider les entrées avec zod
-- Retourner des réponses `NextResponse.json()`
-- Gérer les erreurs avec des codes HTTP appropriés
-
-### Styles
-- Utiliser les classes Tailwind en priorité
-- Variables CSS shadcn/ui pour les couleurs (ne pas hardcoder)
-- Utiliser `cn()` de `@/lib/utils` pour les classes conditionnelles
-
-## Commandes utiles
-
-```bash
-# Développement
-npm run dev
-
-# Build
-npm run build
-
-# Linting
-npm run lint
-
-# Prisma - générer le client
-npx prisma generate
-
-# Prisma - créer une migration
-npx prisma migrate dev --name [nom-migration]
-
-# Prisma - appliquer les migrations en production
-npx prisma migrate deploy
-
-# Prisma - ouvrir Prisma Studio
-npx prisma studio
-```
-
-## Variables d'environnement
-
-Voir `.env.example` pour toutes les variables requises.
-
-- Ne jamais committer `.env` (contient les secrets)
-- Committer `.env.example` avec des valeurs placeholder
-- Les variables `NEXT_PUBLIC_*` sont exposées côté client
-
-## Supabase
-
-- Utiliser `createSupabaseClient()` depuis `@/lib/supabase/client` pour le navigateur
-- Utiliser `createSupabaseServerClient()` depuis `@/lib/supabase/server` pour les Server Components et API Routes
-- Prisma est la source principale pour les requêtes DB
-- Supabase est utilisé pour l'auth, storage, et realtime si nécessaire
+## Priorités de développement
+Phase MVP (P0): REQ-SCN-001→009, REQ-CTR-001→003,008→010,
+                REQ-DSH-001,003,005, REQ-REG-001,005,
+                REQ-NFR-001,003,005→009,012,013
