@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Mon Application",
-  description: "Application Next.js avec shadcn/ui et Supabase",
+  title: {
+    default: "InfluComply",
+    template: "%s · InfluComply",
+  },
+  description: "Plateforme de conformité réglementaire pour les créateurs de contenu — loi 2023-451",
 };
 
 export default function RootLayout({
