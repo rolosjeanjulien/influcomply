@@ -3,7 +3,7 @@
 
 export type RegTextType = "LAW" | "DECREE" | "ORDINANCE" | "GUIDE" | "POSITION" | "CERTIFICATE"
 export type RulePatternType = "REGEX" | "SEMANTIC" | "HYBRID"
-export type AlertSeverity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO"
+export type AlertSeverity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
 
 // ─── Textes réglementaires ────────────────────────────────────────────────
 
@@ -116,7 +116,6 @@ export const ALERT_SEVERITY_LABELS: Record<AlertSeverity, string> = {
   HIGH: "Élevé",
   MEDIUM: "Moyen",
   LOW: "Faible",
-  INFO: "Informatif",
 }
 
 export const ALERT_SEVERITY_COLORS: Record<AlertSeverity, string> = {
@@ -124,5 +123,4 @@ export const ALERT_SEVERITY_COLORS: Record<AlertSeverity, string> = {
   HIGH: "bg-orange-100 text-orange-700 border-orange-200",
   MEDIUM: "bg-amber-100 text-amber-700 border-amber-200",
   LOW: "bg-blue-100 text-blue-700 border-blue-200",
-  INFO: "bg-gray-100 text-gray-600 border-gray-200",
 }

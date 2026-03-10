@@ -389,16 +389,20 @@ model RegulatoryTextChunk {
 
 // REQ-REG-002 — alertes réglementaires
 model RegulatoryAlert {
-  id          String    @id @default(cuid())
-  textId      String?   @map("text_id")
-  title       String
-  summary     String
-  source      String
-  url         String?
-  publishedAt DateTime  @map("published_at")
-  isValidated Boolean   @default(false) @map("is_validated")
-  notifiedAt  DateTime? @map("notified_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id              String    @id @default(cuid())
+  textId          String?   @map("text_id")
+  title           String
+  summary         String
+  source          String
+  url             String?
+  severity        Severity  @default(LOW)
+  publishedAt     DateTime  @map("published_at")
+  readAt          DateTime? @map("read_at")
+  actionRequired  Boolean   @default(false) @map("action_required")
+  actionDeadline  DateTime? @map("action_deadline")
+  isValidated     Boolean   @default(false) @map("is_validated")
+  notifiedAt      DateTime? @map("notified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   @@map("regulatory_alerts")
 }
