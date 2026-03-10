@@ -5,28 +5,38 @@ import { Header } from "@/components/layout/header"
 
 export const dynamic = "force-dynamic"
 
+const DEMO_USER = { email: "demo@influcomply.fr", name: "Démo" }
+
+async function getUser() {
+  if (process.env.DEMO_MODE === "true") {
+    return { email: DEMO_USER.email, name: DEMO_USER.name }
+  }
+  try {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    return { email: user.email, name: user.user_metadata?.name as string | undefined }
+  } catch {
+    return null
+  }
+}
+
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getUser()
 
   if (!user) {
     redirect("/login")
   }
 
-  const userName = user.user_metadata?.name as string | undefined
-  const userEmail = user.email
-
   return (
     <div className="flex min-h-screen bg-zinc-50">
       <Sidebar />
       <div className="flex flex-col flex-1 min-w-0">
-        <Header userEmail={userEmail} userName={userName} />
+        <Header userEmail={user.email} userName={user.name} />
         <main className="flex-1 p-6 overflow-auto">
           {children}
         </main>
