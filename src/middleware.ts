@@ -17,6 +17,11 @@ function isPublicRoute(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  // Demo mode: skip all auth checks
+  if (process.env.DEMO_MODE === "true") {
+    return supabaseResponse
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
