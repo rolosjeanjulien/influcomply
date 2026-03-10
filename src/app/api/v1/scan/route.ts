@@ -49,7 +49,7 @@ export const POST = withApiAuth(async (req, ctx) => {
       score: scanData?.score ?? null,
       status: scanData?.status ?? "PROCESSING",
       nonConformities: (scanData?.nonConformities as unknown[])?.length ?? 0,
-      createdAt: scanData?.createdAt ?? new Date(),
+      createdAt: scanData?.scannedAt ?? new Date(),
     },
     { status: 201 }
   )
