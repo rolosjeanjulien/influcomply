@@ -43,7 +43,7 @@ export default async function ContratDetailPage({
     creatorName: dbUser.name ?? "Créateur",
     creatorEmail: dbUser.email,
     brandName: contract.organization.name,
-    brandEmail: contract.organization.email ?? "",
+    brandEmail: "",
     brandSiret: contract.organization.siret ?? undefined,
     amount: contract.amount ? Number(contract.amount) : undefined,
     currency: contract.currency,
