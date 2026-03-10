@@ -1,270 +1,208 @@
+// REQ-DSH-001, REQ-DSH-002, REQ-DSH-006
+// SPC-DSH-001, SPC-DSH-002, SPC-DSH-006
+
+import Link from "next/link"
+import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  getDashboardKPIs,
+  getScoreTrend,
+  getNonConformityDistribution,
+  getScanVolume,
+} from "@/services/dashboard/dashboard-service"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { ComplianceChart } from "@/components/dashboard/compliance-chart"
+import { NcDistributionChart } from "@/components/dashboard/nc-distribution-chart"
+import { ScanVolumeChart } from "@/components/dashboard/scan-volume-chart"
+import { AuditReportButton } from "@/components/dashboard/audit-report-button"
 import {
-  ShieldCheck,
-  ScanSearch,
-  AlertTriangle,
-  FileText,
-  TrendingUp,
-  TrendingDown,
-  Minus,
+  ShieldCheck, ScanSearch, AlertTriangle, FileText,
+  TrendingUp, TrendingDown, Minus, Plus, BadgeCheck,
 } from "lucide-react"
 
-// REQ-DSH-001, REQ-DSH-002
+export const metadata = { title: "Dashboard" }
+
 export default async function DashboardPage() {
   const supabase = await createSupabaseServerClient()
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) redirect("/login")
 
-  if (!authUser) return null
+  const dbUser = await prisma.user.findUnique({ where: { supabaseId: authUser.id } })
+  if (!dbUser) redirect("/login")
 
-  // Récupération des données du tableau de bord
-  const [user, recentScans, unresolvedCount, activeContracts] =
-    await Promise.all([
-      prisma.user.findUnique({
-        where: { supabaseId: authUser.id },
-        include: {
-          badge: true,
-          complianceScores: {
-            orderBy: { date: "desc" },
-            take: 90,
-          },
-        },
-      }),
-      prisma.scanResult.findMany({
-        where: {
-          publication: { userId: (await prisma.user.findUnique({ where: { supabaseId: authUser.id } }))?.id ?? "" },
-        },
-        orderBy: { scannedAt: "desc" },
-        take: 5,
-        include: {
-          publication: true,
-          nonConformities: true,
-        },
-      }),
-      prisma.nonConformity.count({
-        where: {
-          isResolved: false,
-          scanResult: {
-            publication: { userId: (await prisma.user.findUnique({ where: { supabaseId: authUser.id } }))?.id ?? "" },
-          },
-        },
-      }),
-      prisma.contract.count({
-        where: {
-          creatorId: (await prisma.user.findUnique({ where: { supabaseId: authUser.id } }))?.id ?? "",
-          status: { in: ["SIGNED", "ACTIVE"] },
-        },
-      }),
-    ])
+  const [kpis, scoreTrend, ncDistribution, scanVolume] = await Promise.all([
+    getDashboardKPIs(dbUser.id),
+    getScoreTrend(dbUser.id, 90),
+    getNonConformityDistribution(dbUser.id),
+    getScanVolume(dbUser.id, 30),
+  ])
 
-  const scores = user?.complianceScores ?? []
-  const currentScore = scores[0]?.score ?? null
-  const prevScore = scores[1]?.score ?? null
-  const scoreTrend =
-    currentScore !== null && prevScore !== null
-      ? currentScore - prevScore
-      : null
+  const name = dbUser.name ?? authUser.email?.split("@")[0] ?? "vous"
 
   return (
     <div className="space-y-6">
       {/* En-tête */}
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-900">
-          Bonjour, {user?.name ?? authUser.email} 👋
-        </h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Voici un résumé de votre conformité aujourd'hui
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900">Bonjour, {name} 👋</h1>
+          <p className="text-sm text-zinc-500 mt-1">Voici votre tableau de bord de conformité</p>
+        </div>
+        <div className="flex gap-2">
+          <AuditReportButton />
+          <Button asChild>
+            <Link href="/scanner/nouveau"><Plus className="h-4 w-4 mr-2" />Nouveau scan</Link>
+          </Button>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Score de conformité */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4" />
-              Score de conformité
-            </CardDescription>
-            <CardTitle className="text-3xl font-bold">
-              {currentScore !== null ? `${currentScore}` : "—"}
-              {currentScore !== null && (
-                <span className="text-base font-normal text-zinc-400">/100</span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {scoreTrend !== null ? (
-              <div className={`flex items-center gap-1 text-sm font-medium ${
-                scoreTrend > 0 ? "text-green-600" : scoreTrend < 0 ? "text-red-500" : "text-zinc-500"
-              }`}>
-                {scoreTrend > 0 ? (
-                  <TrendingUp className="h-4 w-4" />
-                ) : scoreTrend < 0 ? (
-                  <TrendingDown className="h-4 w-4" />
-                ) : (
-                  <Minus className="h-4 w-4" />
-                )}
-                {scoreTrend > 0 ? `+${scoreTrend}` : scoreTrend} pts vs hier
-              </div>
-            ) : (
-              <p className="text-sm text-zinc-400">Aucun scan effectué</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Scans récents */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5">
-              <ScanSearch className="h-4 w-4" />
-              Scans récents
-            </CardDescription>
-            <CardTitle className="text-3xl font-bold">
-              {recentScans.length}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-zinc-400">Sur les 5 derniers</p>
-          </CardContent>
-        </Card>
-
-        {/* Non-conformités actives */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5">
-              <AlertTriangle className="h-4 w-4" />
-              Non-conformités
-            </CardDescription>
-            <CardTitle className={`text-3xl font-bold ${unresolvedCount > 0 ? "text-red-500" : "text-green-600"}`}>
-              {unresolvedCount}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-zinc-400">
-              {unresolvedCount === 0 ? "Aucune en attente" : "À corriger"}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Contrats actifs */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5">
-              <FileText className="h-4 w-4" />
-              Contrats actifs
-            </CardDescription>
-            <CardTitle className="text-3xl font-bold">{activeContracts}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-zinc-400">Signés ou en cours</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Badge de certification */}
-      {user?.badge && (
+      {/* Badge certification */}
+      {kpis.badgeStatus === "CERTIFIED" && (
         <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="h-8 w-8 text-blue-600" />
-              <div>
-                <CardTitle className="text-blue-800">
-                  {user.badge.status === "CERTIFIED"
-                    ? "Créateur certifié InfluComply"
-                    : user.badge.status === "ELIGIBLE"
-                    ? "Éligible à la certification"
-                    : "Certification révoquée"}
-                </CardTitle>
-                <CardDescription className="text-blue-600">
-                  {user.badge.status === "CERTIFIED" &&
-                    user.badge.certifiedSince &&
-                    `Certifié depuis le ${new Date(user.badge.certifiedSince).toLocaleDateString("fr-FR")}`}
-                  {user.badge.status === "ELIGIBLE" &&
-                    "Maintenez votre score > 80/100 pendant 90 jours"}
-                </CardDescription>
-              </div>
+          <CardContent className="flex items-center gap-3 py-4">
+            <BadgeCheck className="h-7 w-7 text-blue-600 shrink-0" />
+            <div>
+              <p className="font-semibold text-blue-800">Créateur certifié InfluComply</p>
+              <p className="text-sm text-blue-600">
+                {kpis.certifiedSince
+                  ? `Certifié depuis le ${new Date(kpis.certifiedSince).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
+                  : "Badge actif"}
+              </p>
             </div>
-          </CardHeader>
+          </CardContent>
         </Card>
       )}
-
-      {/* Scans récents */}
-      {recentScans.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Derniers scans</CardTitle>
-            <CardDescription>Publications analysées récemment</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="divide-y divide-zinc-100">
-              {recentScans.map((scan) => (
-                <div
-                  key={scan.id}
-                  className="flex items-center justify-between py-3"
-                >
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-zinc-700 truncate max-w-xs">
-                      {scan.publication.url ?? scan.publication.platform}
-                    </span>
-                    <span className="text-xs text-zinc-400">
-                      {new Date(scan.scannedAt).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {scan.nonConformities.length > 0 && (
-                      <span className="text-xs text-red-500 font-medium">
-                        {scan.nonConformities.length} alerte{scan.nonConformities.length > 1 ? "s" : ""}
-                      </span>
-                    )}
-                    <span
-                      className={`text-sm font-bold ${
-                        scan.score >= 80
-                          ? "text-green-600"
-                          : scan.score >= 50
-                          ? "text-orange-500"
-                          : "text-red-500"
-                      }`}
-                    >
-                      {scan.score}/100
-                    </span>
-                  </div>
-                </div>
-              ))}
+      {kpis.badgeStatus === "ELIGIBLE" && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="flex items-center gap-3 py-4">
+            <ShieldCheck className="h-7 w-7 text-green-600 shrink-0" />
+            <div>
+              <p className="font-semibold text-green-800">Éligible à la certification</p>
+              <p className="text-sm text-green-600">Maintenez un score {'>'} 80/100 pendant 90 jours consécutifs.</p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* État initial (aucun scan) */}
-      {recentScans.length === 0 && (
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Score actuel"
+          value={kpis.currentScore !== null ? `${kpis.currentScore}/100` : "—"}
+          icon={<ShieldCheck className="h-4 w-4 text-blue-500" />}
+          trend={kpis.scoreChange}
+          trendLabel="vs 7 jours"
+          valueColor={
+            kpis.currentScore === null ? undefined
+            : kpis.currentScore >= 80 ? "text-green-600"
+            : kpis.currentScore >= 50 ? "text-orange-500"
+            : "text-red-500"
+          }
+        />
+        <KpiCard
+          label="Moy. 90 jours"
+          value={kpis.averageScore90d !== null ? `${kpis.averageScore90d}/100` : "—"}
+          icon={<TrendingUp className="h-4 w-4 text-zinc-400" />}
+          sub={`${scoreTrend.length} jours de données`}
+        />
+        <KpiCard
+          label="Non-conformités"
+          value={kpis.unresolvedNonConformities}
+          icon={<AlertTriangle className="h-4 w-4 text-red-400" />}
+          sub={`${kpis.resolvedNonConformities} résolue${kpis.resolvedNonConformities > 1 ? "s" : ""}`}
+          valueColor={kpis.unresolvedNonConformities > 0 ? "text-red-500" : "text-green-600"}
+        />
+        <KpiCard
+          label="Contrats actifs"
+          value={kpis.activeContracts}
+          icon={<FileText className="h-4 w-4 text-zinc-400" />}
+          sub={`${kpis.totalPublications} publication${kpis.totalPublications > 1 ? "s" : ""} scannée${kpis.totalPublications > 1 ? "s" : ""}`}
+        />
+      </div>
+
+      {/* Graphiques ligne 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Tendance 90j — occupe 2/3 */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Score de conformité — 90 derniers jours</CardTitle>
+            <CardDescription className="text-xs">Seuils : 80+ certifié · 50+ à améliorer · &lt;50 non conforme</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ComplianceChart data={scoreTrend} />
+          </CardContent>
+        </Card>
+
+        {/* Distribution NC */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Non-conformités actives</CardTitle>
+            <CardDescription className="text-xs">Par type de violation</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <NcDistributionChart data={ncDistribution} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Volume de scans */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Volume de scans — 30 derniers jours</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScanVolumeChart data={scanVolume} />
+        </CardContent>
+      </Card>
+
+      {/* Call-to-action si aucune donnée */}
+      {kpis.totalScans === 0 && (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <ScanSearch className="h-12 w-12 text-zinc-300 mb-4" />
-            <CardTitle className="text-zinc-500 text-base mb-1">
-              Aucune publication scannée
-            </CardTitle>
-            <CardDescription>
-              Connectez vos comptes sociaux ou importez une publication pour
-              analyser sa conformité.
+            <CardTitle className="text-zinc-500 text-base mb-1">Commencez par scanner une publication</CardTitle>
+            <CardDescription className="mb-4">
+              L'analyse prend moins d'une minute et détecte automatiquement les non-conformités.
             </CardDescription>
+            <Button asChild>
+              <Link href="/scanner/nouveau"><Plus className="h-4 w-4 mr-2" />Lancer mon premier scan</Link>
+            </Button>
           </CardContent>
         </Card>
       )}
     </div>
+  )
+}
+
+function KpiCard({
+  label, value, icon, trend, trendLabel, sub, valueColor,
+}: {
+  label: string
+  value: string | number
+  icon: React.ReactNode
+  trend?: number | null
+  trendLabel?: string
+  sub?: string
+  valueColor?: string
+}) {
+  return (
+    <Card>
+      <CardContent className="pt-5 pb-4">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-zinc-500 font-medium">{label}</p>
+          {icon}
+        </div>
+        <p className={`text-2xl font-bold ${valueColor ?? "text-zinc-900"}`}>{value}</p>
+        {trend !== undefined && trend !== null ? (
+          <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${trend > 0 ? "text-green-600" : trend < 0 ? "text-red-500" : "text-zinc-400"}`}>
+            {trend > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : trend < 0 ? <TrendingDown className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
+            {trend > 0 ? `+${trend}` : trend} pts {trendLabel}
+          </div>
+        ) : sub ? (
+          <p className="text-xs text-zinc-400 mt-1">{sub}</p>
+        ) : null}
+      </CardContent>
+    </Card>
   )
 }
