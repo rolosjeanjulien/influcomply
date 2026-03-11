@@ -5,7 +5,10 @@ import { Header } from "@/components/layout/header"
 
 export const dynamic = "force-dynamic"
 
-const DEMO_USER = { email: "demo@influcomply.fr", name: "Démo" }
+const DEMO_USER = {
+  email: "marie.dupont@beautyagency.fr",
+  name: "Marie Dupont",
+}
 
 function isSupabaseConfigured(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
