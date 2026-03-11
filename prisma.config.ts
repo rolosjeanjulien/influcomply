@@ -1,4 +1,6 @@
-import "dotenv/config";
+import { config } from "dotenv";
+config({ path: ".env.local" });
+config(); // fallback to .env
 import { defineConfig } from "prisma/config";
 
 export default defineConfig({
@@ -7,7 +9,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // DATABASE_URL utilise le pooler Supabase (Transaction mode) pour le runtime
-    url: process.env["DATABASE_URL"],
+    // DIRECT_URL pour les migrations (connexion directe, pas le pooler)
+    url: process.env["DIRECT_URL"],
   },
 });
