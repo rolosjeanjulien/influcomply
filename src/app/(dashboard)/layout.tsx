@@ -7,15 +7,23 @@ export const dynamic = "force-dynamic"
 
 const DEMO_USER = { email: "demo@influcomply.fr", name: "Démo" }
 
+function isSupabaseConfigured(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return !!(url && key && url !== "https://placeholder.supabase.co" && key !== "placeholder" && url.includes(".supabase.co"))
+}
+
 async function getUser() {
+  if (!isSupabaseConfigured()) {
+    return { email: DEMO_USER.email, name: DEMO_USER.name }
+  }
   try {
     const supabase = await createSupabaseServerClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
     return { email: user.email, name: user.user_metadata?.name as string | undefined }
   } catch {
-    // Supabase not configured — return demo user for preview
-    return { email: DEMO_USER.email, name: DEMO_USER.name }
+    return null
   }
 }
 
