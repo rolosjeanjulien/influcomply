@@ -1,208 +1,185 @@
-// REQ-DSH-001, REQ-DSH-002, REQ-DSH-006
-// SPC-DSH-001, SPC-DSH-002, SPC-DSH-006
-
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
-import {
-  getDashboardKPIs,
-  getScoreTrend,
-  getNonConformityDistribution,
-  getScanVolume,
-} from "@/services/dashboard/dashboard-service"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ComplianceChart } from "@/components/dashboard/compliance-chart"
-import { NcDistributionChart } from "@/components/dashboard/nc-distribution-chart"
-import { ScanVolumeChart } from "@/components/dashboard/scan-volume-chart"
-import { AuditReportButton } from "@/components/dashboard/audit-report-button"
-import {
-  ShieldCheck, ScanSearch, AlertTriangle, FileText,
-  TrendingUp, TrendingDown, Minus, Plus, BadgeCheck,
-} from "lucide-react"
+import { FileText, Plus, Clock, CheckCircle2, PenLine, Sparkles, ArrowRight } from "lucide-react"
 
-export const metadata = { title: "Dashboard" }
+export const metadata = { title: "Accueil — InfluComply" }
+
+function isSupabaseConfigured(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  return !!(url && key && url !== "https://placeholder.supabase.co" && key !== "placeholder" && url.includes(".supabase.co"))
+}
 
 export default async function DashboardPage() {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) redirect("/login")
+  let dbUser = null
 
-  const dbUser = await prisma.user.findUnique({ where: { supabaseId: authUser.id } })
-  if (!dbUser) redirect("/login")
+  if (isSupabaseConfigured()) {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (!authUser) redirect("/login")
+    dbUser = await prisma.user.findUnique({
+      where: { supabaseId: authUser.id },
+      include: {
+        contracts: {
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        },
+      },
+    })
+  }
 
-  const [kpis, scoreTrend, ncDistribution, scanVolume] = await Promise.all([
-    getDashboardKPIs(dbUser.id),
-    getScoreTrend(dbUser.id, 90),
-    getNonConformityDistribution(dbUser.id),
-    getScanVolume(dbUser.id, 30),
-  ])
+  const contracts = dbUser?.contracts ?? []
+  const name = dbUser?.name ?? "vous"
 
-  const name = dbUser.name ?? authUser.email?.split("@")[0] ?? "vous"
+  const stats = {
+    total: contracts.length,
+    draft: contracts.filter(c => c.status === "DRAFT").length,
+    pending: contracts.filter(c => c.status === "PENDING_SIGNATURE").length,
+    signed: contracts.filter(c => c.status === "SIGNED" || c.status === "ACTIVE").length,
+  }
 
   return (
-    <div className="space-y-6">
-      {/* En-tête */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Bonjour, {name} 👋</h1>
-          <p className="text-sm text-zinc-500 mt-1">Voici votre tableau de bord de conformité</p>
-        </div>
-        <div className="flex gap-2">
-          <AuditReportButton />
-          <Button asChild>
-            <Link href="/scanner/nouveau"><Plus className="h-4 w-4 mr-2" />Nouveau scan</Link>
-          </Button>
-        </div>
-      </div>
-
-      {/* Badge certification */}
-      {kpis.badgeStatus === "CERTIFIED" && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="flex items-center gap-3 py-4">
-            <BadgeCheck className="h-7 w-7 text-blue-600 shrink-0" />
-            <div>
-              <p className="font-semibold text-blue-800">Créateur certifié InfluComply</p>
-              <p className="text-sm text-blue-600">
-                {kpis.certifiedSince
-                  ? `Certifié depuis le ${new Date(kpis.certifiedSince).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
-                  : "Badge actif"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      {kpis.badgeStatus === "ELIGIBLE" && (
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="flex items-center gap-3 py-4">
-            <ShieldCheck className="h-7 w-7 text-green-600 shrink-0" />
-            <div>
-              <p className="font-semibold text-green-800">Éligible à la certification</p>
-              <p className="text-sm text-green-600">Maintenez un score {'>'} 80/100 pendant 90 jours consécutifs.</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          label="Score actuel"
-          value={kpis.currentScore !== null ? `${kpis.currentScore}/100` : "—"}
-          icon={<ShieldCheck className="h-4 w-4 text-blue-500" />}
-          trend={kpis.scoreChange}
-          trendLabel="vs 7 jours"
-          valueColor={
-            kpis.currentScore === null ? undefined
-            : kpis.currentScore >= 80 ? "text-green-600"
-            : kpis.currentScore >= 50 ? "text-orange-500"
-            : "text-red-500"
-          }
-        />
-        <KpiCard
-          label="Moy. 90 jours"
-          value={kpis.averageScore90d !== null ? `${kpis.averageScore90d}/100` : "—"}
-          icon={<TrendingUp className="h-4 w-4 text-zinc-400" />}
-          sub={`${scoreTrend.length} jours de données`}
-        />
-        <KpiCard
-          label="Non-conformités"
-          value={kpis.unresolvedNonConformities}
-          icon={<AlertTriangle className="h-4 w-4 text-red-400" />}
-          sub={`${kpis.resolvedNonConformities} résolue${kpis.resolvedNonConformities > 1 ? "s" : ""}`}
-          valueColor={kpis.unresolvedNonConformities > 0 ? "text-red-500" : "text-green-600"}
-        />
-        <KpiCard
-          label="Contrats actifs"
-          value={kpis.activeContracts}
-          icon={<FileText className="h-4 w-4 text-zinc-400" />}
-          sub={`${kpis.totalPublications} publication${kpis.totalPublications > 1 ? "s" : ""} scannée${kpis.totalPublications > 1 ? "s" : ""}`}
-        />
-      </div>
-
-      {/* Graphiques ligne 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Tendance 90j — occupe 2/3 */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Score de conformité — 90 derniers jours</CardTitle>
-            <CardDescription className="text-xs">Seuils : 80+ certifié · 50+ à améliorer · &lt;50 non conforme</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ComplianceChart data={scoreTrend} />
-          </CardContent>
-        </Card>
-
-        {/* Distribution NC */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Non-conformités actives</CardTitle>
-            <CardDescription className="text-xs">Par type de violation</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <NcDistributionChart data={ncDistribution} />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Volume de scans */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Volume de scans — 30 derniers jours</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScanVolumeChart data={scanVolume} />
-        </CardContent>
-      </Card>
-
-      {/* Call-to-action si aucune donnée */}
-      {kpis.totalScans === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <ScanSearch className="h-12 w-12 text-zinc-300 mb-4" />
-            <CardTitle className="text-zinc-500 text-base mb-1">Commencez par scanner une publication</CardTitle>
-            <CardDescription className="mb-4">
-              L'analyse prend moins d'une minute et détecte automatiquement les non-conformités.
-            </CardDescription>
-            <Button asChild>
-              <Link href="/scanner/nouveau"><Plus className="h-4 w-4 mr-2" />Lancer mon premier scan</Link>
+    <div className="space-y-8">
+      {/* Hero greeting */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600 via-violet-700 to-indigo-700 p-8 text-white shadow-lg">
+        <div className="relative z-10">
+          <p className="text-violet-200 text-sm font-medium mb-1">Bonjour 👋</p>
+          <h1 className="text-2xl font-bold mb-2">Bienvenue sur InfluComply, {name}</h1>
+          <p className="text-violet-200 text-sm max-w-lg">
+            Gérez vos contrats de collaboration en toute conformité avec la loi n° 2023-451.
+            Générez des contrats juridiques en quelques clics.
+          </p>
+          <div className="flex gap-3 mt-6">
+            <Button asChild className="bg-white text-violet-700 hover:bg-violet-50 font-semibold shadow-sm rounded-xl">
+              <Link href="/contrats/nouveau">
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau contrat
+              </Link>
             </Button>
-          </CardContent>
-        </Card>
-      )}
+            <Button asChild variant="ghost" className="text-white hover:bg-white/10 rounded-xl border border-white/20">
+              <Link href="/veille">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Assistant IA
+              </Link>
+            </Button>
+          </div>
+        </div>
+        {/* Decorative circles */}
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5" />
+        <div className="absolute -right-4 -bottom-8 h-56 w-56 rounded-full bg-white/5" />
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard
+          label="Total contrats"
+          value={stats.total}
+          icon={<FileText className="h-5 w-5 text-violet-500" />}
+          bg="bg-violet-50"
+        />
+        <StatCard
+          label="En attente de signature"
+          value={stats.pending}
+          icon={<Clock className="h-5 w-5 text-amber-500" />}
+          bg="bg-amber-50"
+        />
+        <StatCard
+          label="Signés"
+          value={stats.signed}
+          icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+          bg="bg-emerald-50"
+        />
+      </div>
+
+      {/* Recent contracts */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-zinc-900">Contrats récents</h2>
+          <Link href="/contrats" className="text-sm text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1">
+            Voir tout <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {contracts.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50 py-16 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-indigo-100 mx-auto mb-4">
+              <PenLine className="h-6 w-6 text-violet-500" />
+            </div>
+            <h3 className="text-base font-semibold text-zinc-800 mb-1">Aucun contrat pour l&apos;instant</h3>
+            <p className="text-sm text-zinc-500 mb-5 max-w-xs mx-auto">
+              Créez votre premier contrat en important une proposition commerciale.
+            </p>
+            <Button asChild className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl shadow-sm hover:opacity-90">
+              <Link href="/contrats/nouveau">
+                <Plus className="h-4 w-4 mr-2" />
+                Créer mon premier contrat
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-zinc-100 bg-white shadow-sm overflow-hidden">
+            {contracts.map((contract, i) => (
+              <Link
+                key={contract.id}
+                href={`/contrats/${contract.id}`}
+                className={`flex items-center justify-between px-5 py-4 hover:bg-zinc-50 transition-colors ${i < contracts.length - 1 ? "border-b border-zinc-100" : ""}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50">
+                    <FileText className="h-4 w-4 text-violet-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900">
+                      {contract.type === "GIFTING" ? "Gifting" : contract.type === "PAID_PARTNERSHIP" ? "Partenariat rémunéré" : "Ambassadeur"}
+                    </p>
+                    <p className="text-xs text-zinc-400">
+                      {new Date(contract.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {contract.amount && (
+                    <span className="text-sm font-semibold text-zinc-700">
+                      {contract.amount.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    </span>
+                  )}
+                  <StatusBadge status={contract.status} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-function KpiCard({
-  label, value, icon, trend, trendLabel, sub, valueColor,
-}: {
-  label: string
-  value: string | number
-  icon: React.ReactNode
-  trend?: number | null
-  trendLabel?: string
-  sub?: string
-  valueColor?: string
-}) {
+function StatCard({ label, value, icon, bg }: { label: string; value: number; icon: React.ReactNode; bg: string }) {
   return (
-    <Card>
-      <CardContent className="pt-5 pb-4">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs text-zinc-500 font-medium">{label}</p>
-          {icon}
-        </div>
-        <p className={`text-2xl font-bold ${valueColor ?? "text-zinc-900"}`}>{value}</p>
-        {trend !== undefined && trend !== null ? (
-          <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${trend > 0 ? "text-green-600" : trend < 0 ? "text-red-500" : "text-zinc-400"}`}>
-            {trend > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : trend < 0 ? <TrendingDown className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
-            {trend > 0 ? `+${trend}` : trend} pts {trendLabel}
-          </div>
-        ) : sub ? (
-          <p className="text-xs text-zinc-400 mt-1">{sub}</p>
-        ) : null}
-      </CardContent>
-    </Card>
+    <div className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-sm">
+      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${bg} mb-3`}>
+        {icon}
+      </div>
+      <p className="text-2xl font-bold text-zinc-900">{value}</p>
+      <p className="text-xs text-zinc-500 mt-0.5">{label}</p>
+    </div>
+  )
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; className: string }> = {
+    DRAFT: { label: "Brouillon", className: "bg-zinc-100 text-zinc-600" },
+    PENDING_SIGNATURE: { label: "En signature", className: "bg-amber-100 text-amber-700" },
+    SIGNED: { label: "Signé", className: "bg-emerald-100 text-emerald-700" },
+    ACTIVE: { label: "Actif", className: "bg-emerald-100 text-emerald-700" },
+    EXPIRED: { label: "Expiré", className: "bg-red-100 text-red-600" },
+    TERMINATED: { label: "Résilié", className: "bg-red-100 text-red-600" },
+  }
+  const s = map[status] ?? { label: status, className: "bg-zinc-100 text-zinc-600" }
+  return (
+    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${s.className}`}>{s.label}</span>
   )
 }

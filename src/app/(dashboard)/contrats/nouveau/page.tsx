@@ -7,18 +7,18 @@ export const metadata = { title: "Nouveau contrat — InfluComply" }
 
 export default function NouveauContratPage() {
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <Link
           href="/contrats"
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 mb-4"
+          className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-700 mb-4 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Retour aux contrats
         </Link>
         <h1 className="text-2xl font-bold text-zinc-900">Nouveau contrat</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Wizard guidé — contrat conforme à la loi n° 2023-451 du 9 juin 2023
+          Importez une proposition commerciale — l&apos;IA préremplie le contrat pour vous.
         </p>
       </div>
       <ContractWizard />
